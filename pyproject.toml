@@ -1,0 +1,9 @@
+[project]
+name = "stellar-x"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "dotenv>=0.9.9",
+    "stellar-contract-bindings>=0.4.1b0",
+    "stellar-sdk>=12.3.0",
+]
