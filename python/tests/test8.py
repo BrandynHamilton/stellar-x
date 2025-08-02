@@ -17,19 +17,31 @@ See: https://developers.stellar.org/docs/glossary/multisig/
 """
 
 from stellar_sdk import Asset, Keypair, Network, Server, Signer, TransactionBuilder
+import os
+from dotenv import load_dotenv
+import requests
+load_dotenv()
+
+PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+PRIVATE_KEY_2 = os.getenv("PRIVATE_KEY_2")
 
 server = Server(horizon_url="https://horizon-testnet.stellar.org")
 root_keypair = Keypair.from_secret(
-    "SA6XHAH4GNLRWWWF6TEVEWNS44CBNFAJWHWOPZCVZOUXSQA7BOYN7XHC"
+    PRIVATE_KEY
 )
 root_account = server.load_account(account_id=root_keypair.public_key)
 secondary_keypair = Keypair.from_secret(
-    "SAMZUAAPLRUH62HH3XE7NVD6ZSMTWPWGM6DS4X47HLVRHEBKP4U2H5E7"
+    PRIVATE_KEY_2
 )
 
 secondary_signer = Signer.ed25519_public_key(
     account_id=secondary_keypair.public_key, weight=1
 )
+
+account_data = server.accounts().account_id(root_keypair.public_key).call()
+print("Thresholds:", account_data["thresholds"])
+print("Signers:", account_data["signers"])
+
 transaction = (
     TransactionBuilder(
         source_account=root_account,
@@ -49,12 +61,30 @@ transaction = (
 
 # only need to sign with the root signer as the 2nd signer won't
 # be added to the account till after this transaction completes
+print("Loaded account:", root_account.account)
+print("Root pubkey:", root_keypair.public_key)
+
 transaction.sign(root_keypair)
+transaction.sign(secondary_keypair)
 response = server.submit_transaction(transaction)
 print(response)
 
+root_account = server.load_account(account_id=root_keypair.public_key)
+
+account_details = server.accounts().account_id(root_keypair.public_key).call()
+print(account_details["signers"])
+
+destination = "GB6NVEN5HSUBKMYCE5ZOWSK5K23TBWRUQLZY3KNMXUZ3AQ2ESC4MY4AQ"
+
+url = "https://friendbot.stellar.org"
+response = requests.get(url, params={"addr": destination})
+if response.status_code == 200:
+    print(f"SUCCESS! You have a new account :)\n{response.text}")
+    account = server.accounts().account_id(destination).call()
+    for balance in account['balances']:
+        print(f"Type: {balance['asset_type']}, Balance: {balance['balance']}")
+
 # now create a payment with the account that has two signers
-destination = "GBA5SMM5OYAOOPL6R773MV7O3CCLUDVLCWHIVVL3W4XTD3DA5FJ4JSEZ"
 transaction = (
     TransactionBuilder(
         source_account=root_account,
